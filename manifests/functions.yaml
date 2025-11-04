@@ -1,0 +1,24 @@
+---
+# Crossplane v2 Composition Functions
+# These functions are used in Pipeline mode compositions
+
+# Function 1: patch-and-transform
+# This is the primary function for Crossplane v2 compositions
+# It handles patching and transforming XR specs into managed resources
+apiVersion: pkg.crossplane.io/v1beta1
+kind: Function
+metadata:
+  name: function-patch-and-transform
+spec:
+  package: xpkg.upbound.io/crossplane-contrib/function-patch-and-transform:v0.6.0
+
+---
+# Function 2: auto-ready
+# This function automatically detects when all composed resources are ready
+# and marks the XR as Ready accordingly
+apiVersion: pkg.crossplane.io/v1beta1
+kind: Function
+metadata:
+  name: function-auto-ready
+spec:
+  package: xpkg.upbound.io/crossplane-contrib/function-auto-ready:v0.3.0

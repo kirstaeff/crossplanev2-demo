@@ -1,0 +1,94 @@
+---
+# Dynamic Configuration Example
+# This XR demonstrates the FLEXIBLE, SELF-SERVICE approach
+# Users have FULL CONTROL over versions, configurations, and settings
+# This is ideal for teams that need customization and autonomy
+apiVersion: bootstrap.crossplane.io/v1alpha1
+kind: XDynamicCluster
+metadata:
+    name: cluster3-dynamic
+    labels:
+        environment: production
+        config-pattern: dynamic
+    annotations:
+        description: "Production cluster with custom configurations"
+        owner: "platform-team"
+spec:
+    # Target cluster configuration
+    targetCluster:
+        name: cluster3
+        providerConfigRef: cluster3-config
+
+    # RICH SPEC - users specify everything
+    # Operators to install with FULL customization
+    operators:
+        - name: cert-manager
+          enabled: true
+          namespace: cluster3-dynamic-cert-manager
+          chart:
+              repository: https://charts.jetstack.io
+              name: cert-manager
+          # USER CHOOSES VERSION
+          version: v1.14.0
+          # USER PROVIDES CUSTOM VALUES
+          values:
+              installCRDs: true
+              # Production HA configuration
+              global:
+                  leaderElection:
+                      namespace: cluster3-dynamic-cert-manager
+              replicaCount: 3
+              resources:
+                  requests:
+                      cpu: 100m
+                      memory: 128Mi
+                  limits:
+                      cpu: 500m
+                      memory: 512Mi
+              webhook:
+                  replicaCount: 3
+              cainjector:
+                  replicaCount: 3
+
+        - name: ingress-nginx
+          enabled: true
+          namespace: cluster3-dynamic-ingress-nginx
+          chart:
+              repository: https://kubernetes.github.io/ingress-nginx
+              name: ingress-nginx
+          # USER CHOOSES VERSION
+          version: 4.9.0
+          # USER PROVIDES CUSTOM VALUES
+          values:
+              controller:
+                  # High availability
+                  replicaCount: 3
+                  service:
+                      type: NodePort
+                  # Custom resource limits
+                  resources:
+                      requests:
+                          cpu: 200m
+                          memory: 256Mi
+                      limits:
+                          cpu: 1000m
+                          memory: 1Gi
+                  # Custom ingress configuration
+                  config:
+                      use-forwarded-headers: "true"
+                      compute-full-forwarded-for: "true"
+                  # Enable metrics
+                  metrics:
+                      enabled: true
+                      serviceMonitor:
+                          enabled: false
+
+    # Global configuration options
+    configuration:
+        createNamespaces: true
+        helmTimeout: "10m"
+        labels:
+            managed-by: crossplane
+            bootstrap-type: dynamic
+            environment: production
+            compliance: required

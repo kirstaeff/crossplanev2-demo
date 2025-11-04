@@ -1,0 +1,169 @@
+---
+# CompositeResourceDefinition for DynamicCluster (Flexible/Self-Service)
+# This XRD defines a RICH schema where users can fully customize operator versions and configurations
+# Users have full control over what gets deployed and how
+# Using Crossplane v2 API
+apiVersion: apiextensions.crossplane.io/v2
+kind: CompositeResourceDefinition
+metadata:
+    name: xdynamicclusters.bootstrap.crossplane.io
+    labels:
+        config-pattern: dynamic
+spec:
+    # Group for the XR
+    group: bootstrap.crossplane.io
+
+    # Default Composition to use if not specified in XR
+    defaultCompositionRef:
+        name: dynamic-cluster
+
+    # Scope of the composite resource (Cluster or Namespaced)
+    # In Crossplane v2, XRs should be Cluster-scoped
+    scope: Cluster
+
+    # Names configuration
+    names:
+        kind: XDynamicCluster
+        plural: xdynamicclusters
+        singular: xdynamiccluster
+
+    # Versions of this XRD
+    versions:
+        - name: v1alpha1
+          served: true
+          referenceable: true
+
+          # Schema defines the structure of the XR spec
+          schema:
+              openAPIV3Schema:
+                  type: object
+                  properties:
+                      spec:
+                          type: object
+                          properties:
+                              # Target cluster configuration
+                              targetCluster:
+                                  type: object
+                                  description: "Configuration for the target cluster to bootstrap"
+                                  properties:
+                                      name:
+                                          type: string
+                                          description: "Name of the target cluster"
+                                      providerConfigRef:
+                                          type: string
+                                          description: "Reference to the ProviderConfig for connecting to the target cluster"
+                                          default: "cluster2-config"
+                                  required:
+                                      - name
+
+                              # Operators to install on the target cluster
+                              operators:
+                                  type: array
+                                  description: "List of operators to install via Helm"
+                                  items:
+                                      type: object
+                                      properties:
+                                          name:
+                                              type: string
+                                              description: "Name of the operator (e.g., cert-manager, ingress-nginx)"
+                                          enabled:
+                                              type: boolean
+                                              description: "Whether this operator should be installed"
+                                              default: true
+                                          version:
+                                              type: string
+                                              description: "Helm chart version to install"
+                                          namespace:
+                                              type: string
+                                              description: "Kubernetes namespace for the operator"
+                                          chart:
+                                              type: object
+                                              description: "Helm chart configuration"
+                                              properties:
+                                                  repository:
+                                                      type: string
+                                                      description: "Helm chart repository URL"
+                                                  name:
+                                                      type: string
+                                                      description: "Helm chart name"
+                                              required:
+                                                  - repository
+                                                  - name
+                                          values:
+                                              type: object
+                                              description: "Helm values for the chart"
+                                              x-kubernetes-preserve-unknown-fields: true
+                                      required:
+                                          - name
+                                          - chart
+
+                              # Global configuration options
+                              configuration:
+                                  type: object
+                                  description: "Global configuration options for the bootstrap"
+                                  properties:
+                                      createNamespaces:
+                                          type: boolean
+                                          description: "Whether to automatically create namespaces for operators"
+                                          default: true
+                                      helmTimeout:
+                                          type: string
+                                          description: "Timeout for Helm operations (e.g., 5m, 300s)"
+                                          default: "5m"
+                                      labels:
+                                          type: object
+                                          description: "Labels to apply to all created resources"
+                                          additionalProperties:
+                                              type: string
+                                      annotations:
+                                          type: object
+                                          description: "Annotations to apply to all created resources"
+                                          additionalProperties:
+                                              type: string
+
+                          required:
+                              - targetCluster
+                              - operators
+
+                      # Status is managed by Crossplane
+                      status:
+                          type: object
+                          properties:
+                              # Standard Crossplane status fields
+                              conditions:
+                                  type: array
+                                  items:
+                                      type: object
+                                      properties:
+                                          type:
+                                              type: string
+                                          status:
+                                              type: string
+                                          lastTransitionTime:
+                                              type: string
+                                              format: date-time
+                                          reason:
+                                              type: string
+                                          message:
+                                              type: string
+                                      required:
+                                          - type
+                                          - status
+
+                              # Custom status fields
+                              installedOperators:
+                                  type: array
+                                  description: "List of successfully installed operators"
+                                  items:
+                                      type: string
+
+                              failedOperators:
+                                  type: array
+                                  description: "List of operators that failed to install"
+                                  items:
+                                      type: object
+                                      properties:
+                                          name:
+                                              type: string
+                                          reason:
+                                              type: string

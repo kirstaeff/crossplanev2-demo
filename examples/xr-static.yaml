@@ -1,0 +1,29 @@
+---
+# Static Configuration Example
+# This XR demonstrates the OPINIONATED, GOLDEN-PATH approach
+# Users ONLY specify the target cluster - everything else is predetermined by the platform team
+# All operator versions, configurations, and settings are hardcoded in the Composition
+apiVersion: bootstrap.crossplane.io/v1alpha1
+kind: XStaticCluster
+metadata:
+    name: cluster2-static
+    labels:
+        environment: development
+        config-pattern: static
+spec:
+    # MINIMAL SPEC - users only provide target cluster information
+    targetCluster:
+        name: cluster2
+        providerConfigRef: cluster2-config
+
+    # Optional: Specify environment preset
+    environment: development
+
+    # Optional: Disable specific operators if needed
+    # disabledOperators:
+    #   - cert-manager
+# What gets deployed (controlled by Composition):
+# - cert-manager v1.13.3 with 2 replicas
+# - ingress-nginx 4.8.3 with 2 replicas
+# - Predefined resource limits
+# - Standard configurations

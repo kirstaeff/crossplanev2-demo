@@ -1,0 +1,114 @@
+---
+# CompositeResourceDefinition for StaticCluster (Opinionated/Golden Path)
+# This XRD defines a minimal schema where the platform team controls all operator versions and configurations
+# Users only specify which cluster to bootstrap
+apiVersion: apiextensions.crossplane.io/v2
+kind: CompositeResourceDefinition
+metadata:
+    name: xstaticclusters.bootstrap.crossplane.io
+    labels:
+        config-pattern: static
+spec:
+    # Group for the XR
+    group: bootstrap.crossplane.io
+
+    # Default Composition to use if not specified in XR
+    defaultCompositionRef:
+        name: static-cluster
+
+    # Composite resources should be Cluster-scoped in v2
+    scope: Cluster
+
+    # Names configuration
+    names:
+        kind: XStaticCluster
+        plural: xstaticclusters
+        singular: xstaticcluster
+
+    # Versions of this XRD
+    versions:
+        - name: v1alpha1
+          served: true
+          referenceable: true
+
+          # Schema defines the structure of the XR spec
+          # This is intentionally minimal - platform team controls the details
+          schema:
+              openAPIV3Schema:
+                  type: object
+                  properties:
+                      spec:
+                          type: object
+                          description: "Static cluster bootstrap configuration - minimal user input required"
+                          properties:
+                              # Target cluster configuration (ONLY thing user specifies)
+                              targetCluster:
+                                  type: object
+                                  description: "Configuration for the target cluster to bootstrap"
+                                  properties:
+                                      name:
+                                          type: string
+                                          description: "Name of the target cluster"
+                                      providerConfigRef:
+                                          type: string
+                                          description: "Reference to the ProviderConfig for connecting to the target cluster"
+                                          default: "cluster2-config"
+                                  required:
+                                      - name
+
+                              # Optional: Allow users to disable specific operators
+                              disabledOperators:
+                                  type: array
+                                  description: "List of operators to skip (e.g., ['cert-manager'])"
+                                  items:
+                                      type: string
+
+                              # Optional: Environment tag for different preset configurations
+                              environment:
+                                  type: string
+                                  description: "Environment preset: development or production"
+                                  default: "development"
+                                  enum:
+                                      - development
+                                      - production
+
+                          required:
+                              - targetCluster
+
+                      # Status is managed by Crossplane
+                      status:
+                          type: object
+                          properties:
+                              # Standard Crossplane status fields
+                              conditions:
+                                  type: array
+                                  items:
+                                      type: object
+                                      properties:
+                                          type:
+                                              type: string
+                                          status:
+                                              type: string
+                                          lastTransitionTime:
+                                              type: string
+                                              format: date-time
+                                          reason:
+                                              type: string
+                                          message:
+                                              type: string
+                                      required:
+                                          - type
+                                          - status
+
+                              # Custom status fields
+                              installedOperators:
+                                  type: array
+                                  description: "List of successfully installed operators"
+                                  items:
+                                      type: string
+
+                              deployedVersions:
+                                  type: object
+                                  description: "Versions of operators that were deployed"
+                                  additionalProperties:
+                                      type: string

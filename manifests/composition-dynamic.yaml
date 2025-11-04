@@ -1,0 +1,278 @@
+---
+# Composition for DynamicCluster using Crossplane v2
+# This Composition ACCEPTS USER INPUT for versions, values, and configurations
+# Users have full flexibility to customize their deployments
+# Uses Composition Functions (v2 pattern) with Pipeline mode
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+    name: dynamic-cluster
+    labels:
+        crossplane.io/xrd: xdynamicclusters.bootstrap.crossplane.io
+        config-pattern: dynamic
+spec:
+    # Reference to the XRD this Composition satisfies
+    compositeTypeRef:
+        apiVersion: bootstrap.crossplane.io/v1alpha1
+        kind: XDynamicCluster
+
+    # Pipeline mode uses Composition Functions (v2 pattern)
+    mode: Pipeline
+
+    # Pipeline defines the sequence of Composition Functions to execute
+    pipeline:
+        # Step 1: Use patch-and-transform function to generate resources
+        - step: patch-and-transform
+          functionRef:
+              name: function-patch-and-transform
+          input:
+              apiVersion: pt.fn.crossplane.io/v1beta1
+              kind: Resources
+
+              # Resources are created based on user input from the XR
+              # This demonstrates USER-CONTROLLED configuration
+              resources:
+                  # Dynamically create namespaces based on operator list
+                  # For each operator, we create its namespace
+                  - name: cert-manager-namespace
+                    base:
+                        apiVersion: kubernetes.crossplane.io/v1alpha2
+                        kind: Object
+                        metadata:
+                            name: cert-manager-namespace
+                        spec:
+                            forProvider:
+                                manifest:
+                                    apiVersion: v1
+                                    kind: Namespace
+                                    metadata:
+                                        name: cert-manager
+                                        labels:
+                                            config-pattern: dynamic
+                                            managed-by: crossplane
+
+                    patches:
+                        - type: FromCompositeFieldPath
+                          fromFieldPath: spec.targetCluster.providerConfigRef
+                          toFieldPath: spec.providerConfigRef.name
+
+                        - type: FromCompositeFieldPath
+                          fromFieldPath: spec.targetCluster.name
+                          toFieldPath: metadata.name
+                          transforms:
+                              - type: string
+                                string:
+                                    fmt: "%s-dynamic-cert-manager-namespace"
+                                    type: Format
+
+                        # Patch namespace name from operators array
+                        - type: FromCompositeFieldPath
+                          fromFieldPath: spec.operators[0].namespace
+                          toFieldPath: spec.forProvider.manifest.metadata.name
+
+                  - name: ingress-nginx-namespace
+                    base:
+                        apiVersion: kubernetes.crossplane.io/v1alpha2
+                        kind: Object
+                        metadata:
+                            name: ingress-nginx-namespace
+                        spec:
+                            forProvider:
+                                manifest:
+                                    apiVersion: v1
+                                    kind: Namespace
+                                    metadata:
+                                        name: ingress-nginx
+                                        labels:
+                                            config-pattern: dynamic
+                                            managed-by: crossplane
+
+                    patches:
+                        - type: FromCompositeFieldPath
+                          fromFieldPath: spec.targetCluster.providerConfigRef
+                          toFieldPath: spec.providerConfigRef.name
+
+                        - type: FromCompositeFieldPath
+                          fromFieldPath: spec.targetCluster.name
+                          toFieldPath: metadata.name
+                          transforms:
+                              - type: string
+                                string:
+                                    fmt: "%s-dynamic-ingress-nginx-namespace"
+                                    type: Format
+
+                        # Patch namespace name from operators array
+                        - type: FromCompositeFieldPath
+                          fromFieldPath: spec.operators[1].namespace
+                          toFieldPath: spec.forProvider.manifest.metadata.name
+
+                  # Install cert-manager with USER-SPECIFIED version and values
+                  - name: cert-manager-release
+                    base:
+                        apiVersion: helm.crossplane.io/v1beta1
+                        kind: Release
+                        metadata:
+                            name: cert-manager
+                        spec:
+                            rollbackLimit: 3
+                            forProvider:
+                                chart:
+                                    name: cert-manager
+                                    repository: https://charts.jetstack.io
+                                    version: v1.13.3 # Will be overridden by patch
+                                namespace: cert-manager
+
+                    patches:
+                        - type: FromCompositeFieldPath
+                          fromFieldPath: spec.targetCluster.providerConfigRef
+                          toFieldPath: spec.providerConfigRef.name
+
+                        - type: FromCompositeFieldPath
+                          fromFieldPath: spec.targetCluster.name
+                          toFieldPath: metadata.name
+                          transforms:
+                              - type: string
+                                string:
+                                    fmt: "%s-dynamic-cert-manager"
+                                    type: Format
+
+                        # DYNAMIC: Patch chart repository from user spec
+                        - type: FromCompositeFieldPath
+                          fromFieldPath: spec.operators[0].chart.repository
+                          toFieldPath: spec.forProvider.chart.repository
+
+                        # DYNAMIC: Patch chart name from user spec
+                        - type: FromCompositeFieldPath
+                          fromFieldPath: spec.operators[0].chart.name
+                          toFieldPath: spec.forProvider.chart.name
+
+                        # DYNAMIC: Patch version from user spec
+                        - type: FromCompositeFieldPath
+                          fromFieldPath: spec.operators[0].version
+                          toFieldPath: spec.forProvider.chart.version
+
+                        # DYNAMIC: Patch namespace from user spec
+                        - type: FromCompositeFieldPath
+                          fromFieldPath: spec.operators[0].namespace
+                          toFieldPath: spec.forProvider.namespace
+
+                        # DYNAMIC: Patch values from user spec
+                        - type: FromCompositeFieldPath
+                          fromFieldPath: spec.operators[0].values
+                          toFieldPath: spec.forProvider.values
+
+                    readinessChecks:
+                        - type: MatchString
+                          fieldPath: status.atProvider.state
+                          matchString: deployed
+
+                  # Install ingress-nginx with USER-SPECIFIED version and values
+                  - name: ingress-nginx-release
+                    base:
+                        apiVersion: helm.crossplane.io/v1beta1
+                        kind: Release
+                        metadata:
+                            name: ingress-nginx
+                        spec:
+                            rollbackLimit: 3
+                            forProvider:
+                                chart:
+                                    name: ingress-nginx
+                                    repository: https://kubernetes.github.io/ingress-nginx
+                                    version: 4.8.3 # Will be overridden by patch
+                                namespace: ingress-nginx
+
+                    patches:
+                        - type: FromCompositeFieldPath
+                          fromFieldPath: spec.targetCluster.providerConfigRef
+                          toFieldPath: spec.providerConfigRef.name
+
+                        - type: FromCompositeFieldPath
+                          fromFieldPath: spec.targetCluster.name
+                          toFieldPath: metadata.name
+                          transforms:
+                              - type: string
+                                string:
+                                    fmt: "%s-ingress-nginx"
+                                    type: Format
+
+                        # DYNAMIC: Patch chart repository from user spec
+                        - type: FromCompositeFieldPath
+                          fromFieldPath: spec.operators[1].chart.repository
+                          toFieldPath: spec.forProvider.chart.repository
+
+                        # DYNAMIC: Patch chart name from user spec
+                        - type: FromCompositeFieldPath
+                          fromFieldPath: spec.operators[1].chart.name
+                          toFieldPath: spec.forProvider.chart.name
+
+                        # DYNAMIC: Patch version from user spec
+                        - type: FromCompositeFieldPath
+                          fromFieldPath: spec.operators[1].version
+                          toFieldPath: spec.forProvider.chart.version
+
+                        # DYNAMIC: Patch namespace from user spec
+                        - type: FromCompositeFieldPath
+                          fromFieldPath: spec.operators[1].namespace
+                          toFieldPath: spec.forProvider.namespace
+
+                        # DYNAMIC: Patch values from user spec
+                        - type: FromCompositeFieldPath
+                          fromFieldPath: spec.operators[1].values
+                          toFieldPath: spec.forProvider.values
+
+                    readinessChecks:
+                        - type: MatchString
+                          fieldPath: status.atProvider.state
+                          matchString: deployed
+
+                  # Create verification ConfigMap
+                  - name: bootstrap-verification
+                    base:
+                        apiVersion: kubernetes.crossplane.io/v1alpha2
+                        kind: Object
+                        metadata:
+                            name: bootstrap-verification
+                        spec:
+                            forProvider:
+                                manifest:
+                                    apiVersion: v1
+                                    kind: ConfigMap
+                                    metadata:
+                                        name: bootstrap-info
+                                        namespace: default
+                                    data:
+                                        bootstrapped: "true"
+                                        pattern: "dynamic"
+
+                    patches:
+                        - type: FromCompositeFieldPath
+                          fromFieldPath: spec.targetCluster.providerConfigRef
+                          toFieldPath: spec.providerConfigRef.name
+
+                        - type: FromCompositeFieldPath
+                          fromFieldPath: spec.targetCluster.name
+                          toFieldPath: spec.forProvider.manifest.data.clusterName
+
+                        - type: FromCompositeFieldPath
+                          fromFieldPath: spec.targetCluster.name
+                          toFieldPath: metadata.name
+                          transforms:
+                              - type: string
+                                string:
+                                    fmt: "%s-dynamic-bootstrap-info"
+                                    type: Format
+
+                        - type: FromCompositeFieldPath
+                          fromFieldPath: spec.targetCluster.name
+                          toFieldPath: spec.forProvider.manifest.metadata.name
+                          transforms:
+                              - type: string
+                                string:
+                                    fmt: "%s-dynamic-bootstrap-info"
+                                    type: Format
+
+        # Step 2: Auto-ready function marks the XR as Ready when all resources are ready
+        - step: automatically-detect-ready-composed-resources
+          functionRef:
+              name: function-auto-ready

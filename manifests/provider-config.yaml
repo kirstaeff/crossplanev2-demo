@@ -1,0 +1,35 @@
+---
+# This file contains example ProviderConfig manifests
+# These are created automatically by the register-target-cluster.sh script
+# This file is for reference only
+
+# ProviderConfig for Kubernetes Provider
+# Allows Crossplane to manage Kubernetes resources on the target cluster
+apiVersion: kubernetes.crossplane.io/v1alpha1
+kind: ProviderConfig
+metadata:
+  name: cluster2-config
+spec:
+  credentials:
+    source: Secret
+    secretRef:
+      # Secret containing the kubeconfig for cluster2
+      name: cluster2-kubeconfig
+      namespace: crossplane-system
+      key: kubeconfig
+
+---
+# ProviderConfig for Helm Provider
+# Allows Crossplane to manage Helm releases on the target cluster
+apiVersion: helm.crossplane.io/v1beta1
+kind: ProviderConfig
+metadata:
+  name: cluster2-config
+spec:
+  credentials:
+    source: Secret
+    secretRef:
+      # Secret containing the kubeconfig for cluster2
+      name: cluster2-kubeconfig
+      namespace: crossplane-system
+      key: kubeconfig
