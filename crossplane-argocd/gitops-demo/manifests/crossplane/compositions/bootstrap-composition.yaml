@@ -37,10 +37,9 @@ spec:
                           fromFieldPath: spec.monitoring.enabled
                           toFieldPath: spec.forProvider.manifest.metadata.labels.enabled
                           transforms:
-                              - type: string
-                                string:
-                                    type: Convert
-                                    convert: "string"
+                              - type: convert
+                                convert:
+                                    toType: string
 
                   # ConfigMap to track monitoring deployment on workload cluster
                   - name: monitoring-config
@@ -80,10 +79,9 @@ spec:
                           fromFieldPath: spec.monitoring.enabled
                           toFieldPath: spec.forProvider.manifest.data.enabled
                           transforms:
-                              - type: string
-                                string:
-                                    type: Convert
-                                    convert: "string"
+                              - type: convert
+                                convert:
+                                    toType: string
                         - type: CombineFromComposite
                           combine:
                               variables:
@@ -150,10 +148,9 @@ spec:
                           fromFieldPath: spec.ingress.enabled
                           toFieldPath: spec.forProvider.manifest.data.enabled
                           transforms:
-                              - type: string
-                                string:
-                                    type: Convert
-                                    convert: "string"
+                              - type: convert
+                                convert:
+                                    toType: string
                         - type: CombineFromComposite
                           combine:
                               variables:
@@ -220,10 +217,9 @@ spec:
                           fromFieldPath: spec.logging.enabled
                           toFieldPath: spec.forProvider.manifest.data.enabled
                           transforms:
-                              - type: string
-                                string:
-                                    type: Convert
-                                    convert: "string"
+                              - type: convert
+                                convert:
+                                    toType: string
                         - type: CombineFromComposite
                           combine:
                               variables:
