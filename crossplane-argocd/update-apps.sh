@@ -48,20 +48,21 @@ if [ -z "$GITLAB_REPO_URL" ]; then
     exit 1
 fi
 
-# Get script directory and ensure we're working with the local git repo
+# Get script directory
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-cd "$SCRIPT_DIR"
 
-# Check if this directory is a git repository
-if [ ! -d ".git" ]; then
-    print_error "This directory is not a git repository"
+# Check if we're in a git repository (check current dir and parent)
+if ! git -C "$SCRIPT_DIR" rev-parse --git-dir > /dev/null 2>&1; then
+    print_error "Not in a git repository"
     echo ""
-    echo "Please initialize git and connect to your GitLab repository:"
+    echo "Please initialize git and connect to your GitHub/GitLab repository:"
     echo "  git init"
     echo "  git remote add origin $GITLAB_REPO_URL"
     echo "  git pull origin main"
     exit 1
 fi
+
+cd "$SCRIPT_DIR"
 
 # Check if we have the GitLab remote configured
 if ! git remote -v | grep -q "$GITLAB_REPO_URL"; then

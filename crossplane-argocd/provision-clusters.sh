@@ -43,16 +43,17 @@ fi
 # Get the repository URL from the secret
 GITLAB_REPO_URL=$(kubectl get secret gitlab-repo-creds -n argocd -o jsonpath='{.data.url}' | base64 -d)
 
-# Get script directory and ensure we're working with the local git repo
+# Get script directory
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-cd "$SCRIPT_DIR"
 
-# Check if this directory is a git repository
-if [ ! -d ".git" ]; then
-    print_error "This directory is not a git repository"
-    echo "Please initialize git and push to GitLab first"
+# Check if we're in a git repository (check current dir and parent)
+if ! git -C "$SCRIPT_DIR" rev-parse --git-dir > /dev/null 2>&1; then
+    print_error "Not in a git repository"
+    echo "Please initialize git and push to GitHub/GitLab first"
     exit 1
 fi
+
+cd "$SCRIPT_DIR"
 
 echo "=============================================="
 echo "Cluster Provisioning Demo"
