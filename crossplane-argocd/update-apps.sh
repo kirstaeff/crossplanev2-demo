@@ -28,24 +28,56 @@ print_error() {
 
 # Check if we're in the right context
 if ! kubectl config current-context | grep -q "kind-management"; then
-    echo "Error: Not connected to management cluster"
+    print_error "Not connected to management cluster"
     echo "Run: kubectl config use-context kind-management"
     exit 1
 fi
 
-REPO_DIR="/tmp/platform-repo"
-if [ ! -d "$REPO_DIR" ]; then
-    print_error "Platform repository not found at $REPO_DIR"
-    echo "Please run ./init-gitops.sh first"
+# Check if GitLab credentials are configured
+if ! kubectl get secret gitlab-repo-creds -n argocd &> /dev/null; then
+    print_error "GitLab repository credentials not found!"
+    echo "Please run ./setup-gitlab-credentials.sh first"
     exit 1
 fi
 
+# Get the repository URL from the secret
+GITLAB_REPO_URL=$(kubectl get secret gitlab-repo-creds -n argocd -o jsonpath='{.data.url}' | base64 -d)
+
+if [ -z "$GITLAB_REPO_URL" ]; then
+    print_error "Could not retrieve GitLab repository URL from secret"
+    exit 1
+fi
+
+# Get script directory and ensure we're working with the local git repo
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+cd "$SCRIPT_DIR"
+
+# Check if this directory is a git repository
+if [ ! -d ".git" ]; then
+    print_error "This directory is not a git repository"
+    echo ""
+    echo "Please initialize git and connect to your GitLab repository:"
+    echo "  git init"
+    echo "  git remote add origin $GITLAB_REPO_URL"
+    echo "  git pull origin main"
+    exit 1
+fi
+
+# Check if we have the GitLab remote configured
+if ! git remote -v | grep -q "$GITLAB_REPO_URL"; then
+    print_warning "Git remote doesn't match GitLab repository"
+    echo "Current remotes:"
+    git remote -v
+    echo ""
+    echo "Expected: $GITLAB_REPO_URL"
+fi
+
 echo "=============================================="
-echo "GitOps Update Demo"
+echo "GitOps Update Demo - Real GitLab Repository"
 echo "=============================================="
 echo ""
-
-cd "$REPO_DIR"
+echo "Repository: $GITLAB_REPO_URL"
+echo ""
 
 # Show current state
 print_step "Current prod cluster configuration:"
@@ -74,7 +106,13 @@ print_step "Committing change to Git..."
 git add manifests/crossplane/clusters/prod-bootstrap.yaml
 git commit -m "prod: Update Prometheus to 46.0.0"
 
-print_success "Change committed"
+print_success "Change committed locally"
+
+echo ""
+print_step "Pushing to GitLab..."
+git push origin $(git rev-parse --abbrev-ref HEAD)
+
+print_success "Change pushed to GitLab"
 
 echo ""
 print_step "Git history:"
@@ -91,11 +129,11 @@ print_step "Step 2: ArgoCD Auto-Sync"
 echo "=============================================="
 echo ""
 
-print_step "ArgoCD detects Git change and syncs automatically..."
+print_step "ArgoCD detects GitLab change and syncs automatically..."
 print_step "No manual intervention needed (automated sync policy)"
 print_success "Waiting for ArgoCD to sync..."
 
-sleep 10
+sleep 15
 
 echo ""
 print_step "Waiting for Crossplane to reconcile..."
@@ -126,7 +164,13 @@ echo ""
 print_step "Reverting the commit..."
 git revert HEAD --no-edit
 
-print_success "Rollback committed"
+print_success "Rollback committed locally"
+
+echo ""
+print_step "Pushing rollback to GitLab..."
+git push origin $(git rev-parse --abbrev-ref HEAD)
+
+print_success "Rollback pushed to GitLab"
 
 echo ""
 print_step "Updated Git history:"
@@ -137,10 +181,10 @@ print_step "Configuration after rollback:"
 cat manifests/crossplane/clusters/prod-bootstrap.yaml | grep -A 2 "monitoring:"
 
 echo ""
-print_step "ArgoCD automatically syncing rollback..."
+print_step "ArgoCD automatically syncing rollback from GitLab..."
 print_success "Waiting for ArgoCD to detect rollback and sync..."
 
-sleep 10
+sleep 15
 
 echo ""
 print_step "Waiting for Crossplane to reconcile..."
@@ -158,13 +202,14 @@ echo "=============================================="
 echo ""
 echo "What we demonstrated:"
 echo "  1. Git commit: Updated Prometheus from 45.0.0 to 46.0.0"
-echo "  2. ArgoCD sync: Applied changes from Git to cluster"
-echo "  3. Crossplane reconciliation: Updated ConfigMaps"
-echo "  4. Git rollback: Reverted to previous version"
-echo "  5. Automatic reconciliation: Crossplane updated back to 45.0.0"
+echo "  2. Git push: Pushed changes to GitLab"
+echo "  3. ArgoCD sync: Applied changes from GitLab to cluster"
+echo "  4. Crossplane reconciliation: Updated ConfigMaps"
+echo "  5. Git rollback: Reverted to previous version"
+echo "  6. Git push: Pushed rollback to GitLab"
+echo "  7. Automatic reconciliation: Crossplane updated back to 45.0.0"
 echo ""
 echo "Complete audit trail:"
-cd "$REPO_DIR"
 git log --oneline
 
 echo ""
@@ -174,9 +219,11 @@ echo "  ✓ Complete audit trail (who, when, what)"
 echo "  ✓ Easy rollback via Git revert"
 echo "  ✓ Automatic reconciliation"
 echo "  ✓ Declarative infrastructure"
+echo "  ✓ Real GitLab repository integration"
 echo ""
 echo "Verification commands:"
-echo "  View Git log: cd $REPO_DIR && git log"
+echo "  View Git log: git log"
+echo "  View GitLab repo: Visit $GITLAB_REPO_URL in browser"
 echo "  View cluster: kubectl get bootstrapstacks -n crossplane-system"
 echo "  View resources on WORKLOAD cluster: kubectl --context kind-workload get configmap -n monitoring"
 echo "  Check version: kubectl --context kind-workload get configmap prod-monitoring -n monitoring -o jsonpath='{.data.version}'"

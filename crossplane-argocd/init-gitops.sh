@@ -6,6 +6,7 @@ set -e
 GREEN='\033[0;32m'
 BLUE='\033[0;34m'
 YELLOW='\033[1;33m'
+RED='\033[0;31m'
 NC='\033[0m' # No Color
 
 # Helper function for output
@@ -21,56 +22,61 @@ print_warning() {
     echo -e "${YELLOW}⚠ $1${NC}"
 }
 
+print_error() {
+    echo -e "${RED}✗ $1${NC}"
+}
+
 # Check if we're in the right context
 if ! kubectl config current-context | grep -q "kind-management"; then
-    echo "Error: Not connected to management cluster"
+    print_error "Not connected to management cluster"
     echo "Run: kubectl config use-context kind-management"
     exit 1
 fi
 
-print_step "Initializing GitOps configuration..."
+print_step "Initializing GitOps configuration with real GitLab repository..."
 
-# For this demo, we'll use the local filesystem as the "git repo"
-# In production, you would point to an actual git repository
-
-# Get script directory BEFORE changing directories
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-if [ ! -d "$SCRIPT_DIR/manifests" ]; then
-    echo "Error: manifests directory not found at $SCRIPT_DIR/manifests"
-    echo "Please run this script from the crossplane-argocd directory or ensure manifests exist"
+# Check if GitLab credentials are configured
+if ! kubectl get secret gitlab-repo-creds -n argocd &> /dev/null; then
+    print_error "GitLab repository credentials not found!"
+    echo ""
+    echo "Please run ./setup-gitlab-credentials.sh first to configure:"
+    echo "  - GitLab repository URL"
+    echo "  - GitLab username"
+    echo "  - GitLab access token"
     exit 1
 fi
 
-# Create a local git repo to simulate the platform-repo
-REPO_DIR="/tmp/platform-repo"
-if [ -d "$REPO_DIR" ]; then
-    print_warning "Platform repo already exists at $REPO_DIR, removing..."
-    rm -rf "$REPO_DIR"
+# Get the repository URL from the secret
+GITLAB_REPO_URL=$(kubectl get secret gitlab-repo-creds -n argocd -o jsonpath='{.data.url}' | base64 -d)
+
+if [ -z "$GITLAB_REPO_URL" ]; then
+    print_error "Could not retrieve GitLab repository URL from secret"
+    exit 1
 fi
 
-print_step "Creating local platform repository..."
-mkdir -p "$REPO_DIR"
-cd "$REPO_DIR"
+print_success "Using GitLab repository: $GITLAB_REPO_URL"
 
-# Initialize git repo
-git init
-git config user.email "demo@example.com"
-git config user.name "Demo User"
+# Get target revision/branch from environment or use default
+TARGET_REVISION="${GIT_BRANCH:-main}"
 
-# Copy manifests to the repo
-print_step "Copying manifests to repository..."
-cp -r "$SCRIPT_DIR/manifests" "$REPO_DIR/"
+print_step "Target branch: $TARGET_REVISION"
 
-# Create initial commit
-git add .
-git commit -m "Initial Crossplane XRDs and compositions"
-print_success "Platform repository initialized at $REPO_DIR"
+# Get script directory
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+if [ ! -d "$SCRIPT_DIR/manifests" ]; then
+    print_error "manifests directory not found at $SCRIPT_DIR/manifests"
+    echo "Please ensure manifests directory exists with your Crossplane configurations"
+    exit 1
+fi
 
-# Now create ArgoCD Applications that will watch the local repo
-# We'll modify the ArgoCD apps to use local path instead of git
+echo ""
+echo "=============================================="
 print_step "Creating ArgoCD Applications..."
+echo "=============================================="
+echo ""
 
-# Create modified ArgoCD application for Crossplane config
+# Create ArgoCD application for Crossplane config (XRDs and Compositions)
+print_step "Creating crossplane-config Application..."
 cat <<EOF | kubectl apply -f -
 apiVersion: argoproj.io/v1alpha1
 kind: Application
@@ -85,8 +91,8 @@ spec:
   project: default
 
   source:
-    repoURL: file://$REPO_DIR
-    targetRevision: HEAD
+    repoURL: $GITLAB_REPO_URL
+    targetRevision: $TARGET_REVISION
     path: manifests/crossplane
     directory:
       recurse: false
@@ -124,6 +130,7 @@ EOF
 print_success "crossplane-config Application created"
 
 # Create ArgoCD application for cluster provisioning
+print_step "Creating cluster-provisioning Application..."
 cat <<EOF | kubectl apply -f -
 apiVersion: argoproj.io/v1alpha1
 kind: Application
@@ -138,8 +145,8 @@ spec:
   project: default
 
   source:
-    repoURL: file://$REPO_DIR
-    targetRevision: HEAD
+    repoURL: $GITLAB_REPO_URL
+    targetRevision: $TARGET_REVISION
     path: manifests/crossplane/clusters
     directory:
       recurse: false
@@ -175,7 +182,8 @@ EOF
 print_success "cluster-provisioning Application created"
 
 # Wait for ArgoCD to sync (automated sync policy will trigger)
-print_step "Waiting for ArgoCD to sync XRDs and Compositions from Git..."
+echo ""
+print_step "Waiting for ArgoCD to sync XRDs and Compositions from GitLab..."
 sleep 10
 
 # Wait for XRDs to be established
@@ -185,6 +193,7 @@ kubectl wait --for=condition=Established xrd/bootstrapstacks.platform.io --timeo
 print_success "XRDs are established"
 
 # Check application status
+echo ""
 print_step "Checking ArgoCD Application status..."
 kubectl get applications -n argocd
 
@@ -193,7 +202,9 @@ echo "=============================================="
 echo -e "${GREEN}✓ GitOps Setup Complete!${NC}"
 echo "=============================================="
 echo ""
-echo "Platform Repository: $REPO_DIR"
+echo "GitLab Repository: $GITLAB_REPO_URL"
+echo "Branch: $TARGET_REVISION"
+echo ""
 echo "ArgoCD Applications:"
 echo "  - crossplane-config (XRDs and Compositions)"
 echo "  - cluster-provisioning (Cluster XRs)"
@@ -204,5 +215,15 @@ echo "  kubectl get xrd"
 echo "  kubectl get compositions"
 echo ""
 echo "Next steps:"
-echo "  Run ./provision-clusters.sh to create cluster instances"
+echo "  1. Push your manifests directory to $GITLAB_REPO_URL"
+echo "     cd $SCRIPT_DIR"
+echo "     git init (if not already initialized)"
+echo "     git remote add origin $GITLAB_REPO_URL"
+echo "     git add manifests/"
+echo "     git commit -m 'Initial Crossplane configuration'"
+echo "     git push -u origin $TARGET_REVISION"
+echo ""
+echo "  2. Once pushed, ArgoCD will automatically sync"
+echo ""
+echo "  3. Run ./provision-clusters.sh to create cluster instances"
 echo ""

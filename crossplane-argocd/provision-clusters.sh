@@ -33,16 +33,32 @@ if ! kubectl config current-context | grep -q "kind-management"; then
     exit 1
 fi
 
-REPO_DIR="/tmp/platform-repo"
-if [ ! -d "$REPO_DIR" ]; then
-    print_error "Platform repository not found at $REPO_DIR"
-    echo "Please run ./init-gitops.sh first"
+# Check if GitLab credentials are configured
+if ! kubectl get secret gitlab-repo-creds -n argocd &> /dev/null; then
+    print_error "GitLab repository credentials not found!"
+    echo "Please run ./setup-gitlab-credentials.sh and ./init-gitops.sh first"
+    exit 1
+fi
+
+# Get the repository URL from the secret
+GITLAB_REPO_URL=$(kubectl get secret gitlab-repo-creds -n argocd -o jsonpath='{.data.url}' | base64 -d)
+
+# Get script directory and ensure we're working with the local git repo
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+cd "$SCRIPT_DIR"
+
+# Check if this directory is a git repository
+if [ ! -d ".git" ]; then
+    print_error "This directory is not a git repository"
+    echo "Please initialize git and push to GitLab first"
     exit 1
 fi
 
 echo "=============================================="
 echo "Cluster Provisioning Demo"
 echo "=============================================="
+echo ""
+echo "Repository: $GITLAB_REPO_URL"
 echo ""
 
 # Function to wait for BootstrapStack to be ready
@@ -66,10 +82,8 @@ wait_for_bootstrap() {
 print_step "Step 1: Provisioning PROD cluster..."
 echo ""
 
-cd "$REPO_DIR"
-
 # Show the manifest content
-print_step "Prod cluster configuration (already in Git from init-gitops.sh):"
+print_step "Prod cluster configuration (from GitLab repository):"
 cat manifests/crossplane/clusters/prod-bootstrap.yaml
 
 echo ""
@@ -110,9 +124,7 @@ echo "=============================================="
 print_step "Step 2: Provisioning STAGING cluster..."
 echo ""
 
-cd "$REPO_DIR"
-
-print_step "Staging cluster configuration (already in Git from init-gitops.sh):"
+print_step "Staging cluster configuration (from GitLab repository):"
 cat manifests/crossplane/clusters/staging-bootstrap.yaml
 
 echo ""
@@ -169,7 +181,6 @@ kubectl --context kind-workload get all,configmap -n monitoring 2>/dev/null || e
 
 echo ""
 echo "Git commit history:"
-cd "$REPO_DIR"
 git log --oneline
 
 echo ""
@@ -195,7 +206,10 @@ echo "Describe prod cluster:"
 echo "  kubectl describe bootstrapstack prod-cluster -n crossplane-system"
 echo ""
 echo "View Git history:"
-echo "  cd $REPO_DIR && git log"
+echo "  git log"
+echo ""
+echo "View GitLab repository:"
+echo "  $GITLAB_REPO_URL"
 echo ""
 echo "Switch between clusters:"
 echo "  kubectl config use-context kind-management"

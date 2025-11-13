@@ -1,50 +1,50 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: crossplane-config
-  namespace: argocd
-  annotations:
-    argocd.argoproj.io/sync-wave: "1"
-  finalizers:
-    - resources-finalizer.argocd.argoproj.io
+    name: crossplane-config
+    namespace: argocd
+    annotations:
+        argocd.argoproj.io/sync-wave: "1"
+    finalizers:
+        - resources-finalizer.argocd.argoproj.io
 spec:
-  project: default
+    project: default
 
-  source:
-    repoURL: https://github.com/YOUR_ORG/platform-repo.git
-    targetRevision: main
-    path: manifests/crossplane
-    directory:
-      recurse: false
-      include: '{xrds/*.yaml,compositions/*.yaml}'
+    source:
+        repoURL: https://github.com/kirstaeff/crossplanev2-demo.git
+        targetRevision: main
+        path: crossplane-argocd/gitops-demo/manifests/crossplane
+        directory:
+            recurse: false
+            include: "{xrds/*.yaml,compositions/*.yaml}"
 
-  destination:
-    server: https://kubernetes.default.svc
-    namespace: crossplane-system
+    destination:
+        server: https://kubernetes.default.svc
+        namespace: crossplane-system
 
-  syncPolicy:
-    automated:
-      prune: true
-      selfHeal: true
-      allowEmpty: false
-    syncOptions:
-      - CreateNamespace=true
-      - PrunePropagationPolicy=foreground
-      - PruneLast=false
-    retry:
-      limit: 5
-      backoff:
-        duration: 5s
-        factor: 2
-        maxDuration: 3m
+    syncPolicy:
+        automated:
+            prune: true
+            selfHeal: true
+            allowEmpty: false
+        syncOptions:
+            - CreateNamespace=true
+            - PrunePropagationPolicy=foreground
+            - PruneLast=false
+        retry:
+            limit: 5
+            backoff:
+                duration: 5s
+                factor: 2
+                maxDuration: 3m
 
-  # Ignore differences in status and metadata fields
-  ignoreDifferences:
-    - group: apiextensions.crossplane.io
-      kind: CompositeResourceDefinition
-      jsonPointers:
-        - /status
-    - group: apiextensions.crossplane.io
-      kind: Composition
-      jsonPointers:
-        - /status
+    # Ignore differences in status and metadata fields
+    ignoreDifferences:
+        - group: apiextensions.crossplane.io
+          kind: CompositeResourceDefinition
+          jsonPointers:
+              - /status
+        - group: apiextensions.crossplane.io
+          kind: Composition
+          jsonPointers:
+              - /status
