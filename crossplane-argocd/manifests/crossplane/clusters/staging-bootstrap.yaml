@@ -1,0 +1,19 @@
+apiVersion: platform.io/v1
+kind: BootstrapStack
+metadata:
+  name: staging-cluster
+  namespace: crossplane-system
+  annotations:
+    argocd.argoproj.io/sync-wave: "10"
+spec:
+  clusterName: staging
+  environment: staging
+  monitoring:
+    enabled: true
+    prometheusVersion: "45.0.0"
+  ingress:
+    enabled: true
+    nginxVersion: "4.5.0"
+  logging:
+    enabled: true
+    lokiVersion: "2.8.0"
