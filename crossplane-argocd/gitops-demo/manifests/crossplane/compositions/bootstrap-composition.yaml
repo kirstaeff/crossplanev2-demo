@@ -69,6 +69,8 @@ spec:
                               - type: string
                                 string:
                                     fmt: "%s-monitoring"
+                                    type: Format
+                                    type: Format
                         - type: FromCompositeFieldPath
                           fromFieldPath: spec.monitoring.prometheusVersion
                           toFieldPath: spec.forProvider.manifest.data.version
@@ -90,6 +92,7 @@ spec:
                               strategy: string
                               string:
                                   fmt: "Prometheus %s deployed to workload cluster %s"
+                                    type: Format
                           toFieldPath: spec.forProvider.manifest.data.message
                         - type: ToCompositeFieldPath
                           fromFieldPath: spec.forProvider.manifest.data.message
@@ -138,6 +141,7 @@ spec:
                               - type: string
                                 string:
                                     fmt: "%s-ingress"
+                                    type: Format
                         - type: FromCompositeFieldPath
                           fromFieldPath: spec.ingress.nginxVersion
                           toFieldPath: spec.forProvider.manifest.data.version
@@ -159,6 +163,7 @@ spec:
                               strategy: string
                               string:
                                   fmt: "Nginx Ingress %s deployed to workload cluster %s"
+                                    type: Format
                           toFieldPath: spec.forProvider.manifest.data.message
                         - type: ToCompositeFieldPath
                           fromFieldPath: spec.forProvider.manifest.data.message
@@ -207,6 +212,7 @@ spec:
                               - type: string
                                 string:
                                     fmt: "%s-logging"
+                                    type: Format
                         - type: FromCompositeFieldPath
                           fromFieldPath: spec.logging.lokiVersion
                           toFieldPath: spec.forProvider.manifest.data.version
@@ -228,6 +234,7 @@ spec:
                               strategy: string
                               string:
                                   fmt: "Loki %s deployed to workload cluster %s"
+                                    type: Format
                           toFieldPath: spec.forProvider.manifest.data.message
                         - type: ToCompositeFieldPath
                           fromFieldPath: spec.forProvider.manifest.data.message
@@ -253,6 +260,7 @@ spec:
                               - type: string
                                 string:
                                     fmt: "%s-bootstrap-status"
+                                    type: Format
                         - type: FromCompositeFieldPath
                           fromFieldPath: spec.environment
                           toFieldPath: data.environment
@@ -267,6 +275,7 @@ spec:
                               strategy: string
                               string:
                                   fmt: "Bootstrap complete for %s (%s) on workload cluster"
+                                    type: Format
                           toFieldPath: data.message
                         - type: ToCompositeFieldPath
                           fromFieldPath: data.message
