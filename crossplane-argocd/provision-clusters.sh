@@ -84,7 +84,7 @@ echo ""
 
 # Show the manifest content
 print_step "Prod cluster configuration (from GitLab repository):"
-cat manifests/crossplane/clusters/prod-bootstrap.yaml
+cat gitops-demo/manifests/crossplane/clusters/prod-bootstrap.yaml
 
 echo ""
 print_step "Git log:"
@@ -125,7 +125,7 @@ print_step "Step 2: Provisioning STAGING cluster..."
 echo ""
 
 print_step "Staging cluster configuration (from GitLab repository):"
-cat manifests/crossplane/clusters/staging-bootstrap.yaml
+cat gitops-demo/manifests/crossplane/clusters/staging-bootstrap.yaml
 
 echo ""
 print_step "Git log:"

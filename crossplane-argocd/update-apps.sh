@@ -82,7 +82,7 @@ echo ""
 # Show current state
 print_step "Current prod cluster configuration:"
 echo ""
-cat manifests/crossplane/clusters/prod-bootstrap.yaml | grep -A 2 "monitoring:"
+cat gitops-demo/manifests/crossplane/clusters/prod-bootstrap.yaml | grep -A 2 "monitoring:"
 
 echo ""
 print_step "Current deployed Prometheus version (on WORKLOAD cluster):"
@@ -96,14 +96,14 @@ echo ""
 
 # Update the Prometheus version
 print_step "Modifying prod-bootstrap.yaml..."
-sed -i 's/prometheusVersion: "45.0.0"/prometheusVersion: "46.0.0"/' manifests/crossplane/clusters/prod-bootstrap.yaml
+sed -i 's/prometheusVersion: "45.0.0"/prometheusVersion: "46.0.0"/' gitops-demo/manifests/crossplane/clusters/prod-bootstrap.yaml
 
 print_step "New configuration:"
-cat manifests/crossplane/clusters/prod-bootstrap.yaml | grep -A 2 "monitoring:"
+cat gitops-demo/manifests/crossplane/clusters/prod-bootstrap.yaml | grep -A 2 "monitoring:"
 
 echo ""
 print_step "Committing change to Git..."
-git add manifests/crossplane/clusters/prod-bootstrap.yaml
+git add gitops-demo/manifests/crossplane/clusters/prod-bootstrap.yaml
 git commit -m "prod: Update Prometheus to 46.0.0"
 
 print_success "Change committed locally"
@@ -178,7 +178,7 @@ git log --oneline -n 5
 
 echo ""
 print_step "Configuration after rollback:"
-cat manifests/crossplane/clusters/prod-bootstrap.yaml | grep -A 2 "monitoring:"
+cat gitops-demo/manifests/crossplane/clusters/prod-bootstrap.yaml | grep -A 2 "monitoring:"
 
 echo ""
 print_step "ArgoCD automatically syncing rollback from GitLab..."
