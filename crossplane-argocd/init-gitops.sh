@@ -95,7 +95,7 @@ spec:
     targetRevision: $TARGET_REVISION
     path: crossplane-argocd/gitops-demo/manifests/crossplane
     directory:
-      recurse: false
+      recurse: true
       include: '{xrds/*.yaml,compositions/*.yaml}'
 
   destination:
@@ -149,7 +149,7 @@ spec:
     targetRevision: $TARGET_REVISION
     path: crossplane-argocd/gitops-demo/manifests/crossplane/clusters
     directory:
-      recurse: false
+      recurse: true
       include: '*.yaml'
 
   destination:
