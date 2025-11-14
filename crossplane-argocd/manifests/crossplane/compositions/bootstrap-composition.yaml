@@ -2,8 +2,6 @@ apiVersion: apiextensions.crossplane.io/v1
 kind: Composition
 metadata:
     name: bootstrap-stack
-    labels:
-        crossplane.io/xrd: bootstrapstacks.platform.io
 spec:
     compositeTypeRef:
         apiVersion: platform.io/v1
@@ -18,85 +16,6 @@ spec:
               apiVersion: pt.fn.crossplane.io/v1beta1
               kind: Resources
               resources:
-                  # Namespace for monitoring on workload cluster
-                  - name: monitoring-namespace
-                    base:
-                        apiVersion: kubernetes.crossplane.io/v1alpha2
-                        kind: Object
-                        spec:
-                            providerConfigRef:
-                                name: workload-cluster
-                            forProvider:
-                                manifest:
-                                    apiVersion: v1
-                                    kind: Namespace
-                                    metadata:
-                                        name: monitoring
-                    patches:
-                        - type: FromCompositeFieldPath
-                          fromFieldPath: spec.monitoring.enabled
-                          toFieldPath: spec.forProvider.manifest.metadata.labels.enabled
-                          transforms:
-                              - type: string
-                                string:
-                                    type: Convert
-                                    convert: "string"
-
-                  # ConfigMap to track monitoring deployment on workload cluster
-                  - name: monitoring-config
-                    base:
-                        apiVersion: kubernetes.crossplane.io/v1alpha2
-                        kind: Object
-                        spec:
-                            providerConfigRef:
-                                name: workload-cluster
-                            forProvider:
-                                manifest:
-                                    apiVersion: v1
-                                    kind: ConfigMap
-                                    metadata:
-                                        namespace: monitoring
-                                        labels:
-                                            app.kubernetes.io/component: monitoring
-                                            managed-by: crossplane
-                                    data:
-                                        release: prometheus
-                                        status: deployed
-                    patches:
-                        - type: FromCompositeFieldPath
-                          fromFieldPath: spec.clusterName
-                          toFieldPath: spec.forProvider.manifest.metadata.name
-                          transforms:
-                              - type: string
-                                string:
-                                    fmt: "%s-monitoring"
-                        - type: FromCompositeFieldPath
-                          fromFieldPath: spec.monitoring.prometheusVersion
-                          toFieldPath: spec.forProvider.manifest.data.version
-                        - type: FromCompositeFieldPath
-                          fromFieldPath: spec.clusterName
-                          toFieldPath: spec.forProvider.manifest.data.targetCluster
-                        - type: FromCompositeFieldPath
-                          fromFieldPath: spec.monitoring.enabled
-                          toFieldPath: spec.forProvider.manifest.data.enabled
-                          transforms:
-                              - type: string
-                                string:
-                                    type: Convert
-                                    convert: "string"
-                        - type: CombineFromComposite
-                          combine:
-                              variables:
-                                  - fromFieldPath: spec.clusterName
-                                  - fromFieldPath: spec.monitoring.prometheusVersion
-                              strategy: string
-                              string:
-                                  fmt: "Prometheus %s deployed to workload cluster %s"
-                          toFieldPath: spec.forProvider.manifest.data.message
-                        - type: ToCompositeFieldPath
-                          fromFieldPath: spec.forProvider.manifest.data.message
-                          toFieldPath: status.deployedApps.monitoring
-
                   # Namespace for ingress on workload cluster
                   - name: ingress-namespace
                     base:
@@ -111,174 +30,54 @@ spec:
                                     kind: Namespace
                                     metadata:
                                         name: ingress-nginx
-
-                  # ConfigMap to track ingress deployment on workload cluster
-                  - name: ingress-config
-                    base:
-                        apiVersion: kubernetes.crossplane.io/v1alpha2
-                        kind: Object
-                        spec:
-                            providerConfigRef:
-                                name: workload-cluster
-                            forProvider:
-                                manifest:
-                                    apiVersion: v1
-                                    kind: ConfigMap
-                                    metadata:
-                                        namespace: ingress-nginx
-                                        labels:
-                                            app.kubernetes.io/component: ingress
-                                            managed-by: crossplane
-                                    data:
-                                        release: nginx-ingress
-                                        status: deployed
                     patches:
                         - type: FromCompositeFieldPath
-                          fromFieldPath: spec.clusterName
+                          fromFieldPath: spec.ingress.namespace
                           toFieldPath: spec.forProvider.manifest.metadata.name
-                          transforms:
-                              - type: string
-                                string:
-                                    fmt: "%s-ingress"
-                        - type: FromCompositeFieldPath
-                          fromFieldPath: spec.ingress.nginxVersion
-                          toFieldPath: spec.forProvider.manifest.data.version
-                        - type: FromCompositeFieldPath
-                          fromFieldPath: spec.clusterName
-                          toFieldPath: spec.forProvider.manifest.data.targetCluster
-                        - type: FromCompositeFieldPath
-                          fromFieldPath: spec.ingress.enabled
-                          toFieldPath: spec.forProvider.manifest.data.enabled
-                          transforms:
-                              - type: string
-                                string:
-                                    type: Convert
-                                    convert: "string"
-                        - type: CombineFromComposite
-                          combine:
-                              variables:
-                                  - fromFieldPath: spec.clusterName
-                                  - fromFieldPath: spec.ingress.nginxVersion
-                              strategy: string
-                              string:
-                                  fmt: "Nginx Ingress %s deployed to workload cluster %s"
-                          toFieldPath: spec.forProvider.manifest.data.message
-                        - type: ToCompositeFieldPath
-                          fromFieldPath: spec.forProvider.manifest.data.message
-                          toFieldPath: status.deployedApps.ingress
 
-                  # Namespace for logging on workload cluster
-                  - name: logging-namespace
+                  # Nginx Ingress Controller Helm Release
+                  - name: nginx-ingress-release
                     base:
-                        apiVersion: kubernetes.crossplane.io/v1alpha2
-                        kind: Object
+                        apiVersion: helm.crossplane.io/v1beta1
+                        kind: Release
                         spec:
                             providerConfigRef:
                                 name: workload-cluster
                             forProvider:
-                                manifest:
-                                    apiVersion: v1
-                                    kind: Namespace
-                                    metadata:
-                                        name: logging
-
-                  # ConfigMap to track logging deployment on workload cluster
-                  - name: logging-config
-                    base:
-                        apiVersion: kubernetes.crossplane.io/v1alpha2
-                        kind: Object
-                        spec:
-                            providerConfigRef:
-                                name: workload-cluster
-                            forProvider:
-                                manifest:
-                                    apiVersion: v1
-                                    kind: ConfigMap
-                                    metadata:
-                                        namespace: logging
-                                        labels:
-                                            app.kubernetes.io/component: logging
-                                            managed-by: crossplane
-                                    data:
-                                        release: loki
-                                        status: deployed
+                                chart:
+                                    name: ingress-nginx
+                                    repository: https://kubernetes.github.io/ingress-nginx
+                                    version: "4.11.3"
+                                namespace: ingress-nginx
+                                values:
+                                    controller:
+                                        replicaCount: 1
+                                        service:
+                                            type: NodePort
+                                        nodeSelector:
+                                            ingress-ready: "true"
+                                        tolerations:
+                                            - key: node-role.kubernetes.io/control-plane
+                                              operator: Equal
+                                              effect: NoSchedule
+                                            - key: node-role.kubernetes.io/master
+                                              operator: Equal
+                                              effect: NoSchedule
                     patches:
                         - type: FromCompositeFieldPath
-                          fromFieldPath: spec.clusterName
-                          toFieldPath: spec.forProvider.manifest.metadata.name
-                          transforms:
-                              - type: string
-                                string:
-                                    fmt: "%s-logging"
+                          fromFieldPath: spec.ingress.chartVersion
+                          toFieldPath: spec.forProvider.chart.version
                         - type: FromCompositeFieldPath
-                          fromFieldPath: spec.logging.lokiVersion
-                          toFieldPath: spec.forProvider.manifest.data.version
+                          fromFieldPath: spec.ingress.namespace
+                          toFieldPath: spec.forProvider.namespace
                         - type: FromCompositeFieldPath
-                          fromFieldPath: spec.clusterName
-                          toFieldPath: spec.forProvider.manifest.data.targetCluster
-                        - type: FromCompositeFieldPath
-                          fromFieldPath: spec.logging.enabled
-                          toFieldPath: spec.forProvider.manifest.data.enabled
-                          transforms:
-                              - type: string
-                                string:
-                                    type: Convert
-                                    convert: "string"
-                        - type: CombineFromComposite
-                          combine:
-                              variables:
-                                  - fromFieldPath: spec.clusterName
-                                  - fromFieldPath: spec.logging.lokiVersion
-                              strategy: string
-                              string:
-                                  fmt: "Loki %s deployed to workload cluster %s"
-                          toFieldPath: spec.forProvider.manifest.data.message
-                        - type: ToCompositeFieldPath
-                          fromFieldPath: spec.forProvider.manifest.data.message
-                          toFieldPath: status.deployedApps.logging
-
-                  # Status ConfigMap on management cluster for tracking
-                  - name: bootstrap-status
-                    base:
-                        apiVersion: v1
-                        kind: ConfigMap
-                        metadata:
-                            namespace: crossplane-system
-                            labels:
-                                app.kubernetes.io/component: bootstrap-status
-                                managed-by: crossplane
-                        data:
-                            ready: "true"
-                    patches:
+                          fromFieldPath: spec.ingress.replicaCount
+                          toFieldPath: spec.forProvider.values.controller.replicaCount
                         - type: FromCompositeFieldPath
                           fromFieldPath: spec.clusterName
                           toFieldPath: metadata.name
                           transforms:
                               - type: string
                                 string:
-                                    fmt: "%s-bootstrap-status"
-                        - type: FromCompositeFieldPath
-                          fromFieldPath: spec.environment
-                          toFieldPath: data.environment
-                        - type: FromCompositeFieldPath
-                          fromFieldPath: spec.clusterName
-                          toFieldPath: data.clusterName
-                        - type: CombineFromComposite
-                          combine:
-                              variables:
-                                  - fromFieldPath: spec.clusterName
-                                  - fromFieldPath: spec.environment
-                              strategy: string
-                              string:
-                                  fmt: "Bootstrap complete for %s (%s) on workload cluster"
-                          toFieldPath: data.message
-                        - type: ToCompositeFieldPath
-                          fromFieldPath: data.message
-                          toFieldPath: status.message
-                        - type: ToCompositeFieldPath
-                          fromFieldPath: data.ready
-                          toFieldPath: status.ready
-                          transforms:
-                              - type: convert
-                                convert:
-                                    toType: bool
+                                    fmt: "%s-nginx-ingress"
+                                    type: Format

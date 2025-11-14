@@ -1,84 +1,56 @@
 apiVersion: apiextensions.crossplane.io/v1
 kind: CompositeResourceDefinition
 metadata:
-  name: bootstrapstacks.platform.io
+    name: bootstrapstacks.platform.io
 spec:
-  group: platform.io
-  names:
-    kind: BootstrapStack
-    plural: bootstrapstacks
-  claimNames:
-    kind: BootstrapStackClaim
-    plural: bootstrapstackclaims
-  versions:
-    - name: v1
-      served: true
-      referenceable: true
-      schema:
-        openAPIV3Schema:
-          type: object
-          properties:
-            spec:
-              type: object
-              properties:
-                clusterName:
-                  type: string
-                  description: Name of the cluster to bootstrap
-                environment:
-                  type: string
-                  enum:
-                    - dev
-                    - staging
-                    - prod
-                  description: Environment type for the cluster
-                monitoring:
+    group: platform.io
+    names:
+        kind: BootstrapStack
+        plural: bootstrapstacks
+    claimNames:
+        kind: BootstrapStackClaim
+        plural: bootstrapstackclaims
+    versions:
+        - name: v1
+          served: true
+          referenceable: true
+          schema:
+              openAPIV3Schema:
                   type: object
                   properties:
-                    enabled:
-                      type: boolean
-                      default: true
-                    prometheusVersion:
-                      type: string
-                      default: "45.0.0"
-                      description: Prometheus Helm chart version
-                ingress:
-                  type: object
-                  properties:
-                    enabled:
-                      type: boolean
-                      default: true
-                    nginxVersion:
-                      type: string
-                      default: "4.5.0"
-                      description: Nginx ingress Helm chart version
-                logging:
-                  type: object
-                  properties:
-                    enabled:
-                      type: boolean
-                      default: true
-                    lokiVersion:
-                      type: string
-                      default: "2.8.0"
-                      description: Loki Helm chart version
-              required:
-                - clusterName
-                - environment
-            status:
-              type: object
-              properties:
-                ready:
-                  type: boolean
-                  description: Whether the bootstrap stack is ready
-                message:
-                  type: string
-                  description: Status message
-                deployedApps:
-                  type: object
-                  properties:
-                    monitoring:
-                      type: string
-                    ingress:
-                      type: string
-                    logging:
-                      type: string
+                      spec:
+                          type: object
+                          properties:
+                              clusterName:
+                                  type: string
+                              ingress:
+                                  type: object
+                                  properties:
+                                      chartVersion:
+                                          type: string
+                                          default: "4.11.3"
+                                          description: Nginx ingress Helm chart version
+                                      namespace:
+                                          type: string
+                                          default: "ingress-nginx"
+                                          description: Namespace for nginx ingress controller
+                                      replicaCount:
+                                          type: integer
+                                          default: 1
+                                          description: Number of nginx ingress controller replicas
+                          required:
+                              - clusterName
+                      status:
+                          type: object
+                          properties:
+                              ready:
+                                  type: boolean
+                                  description: Whether the bootstrap stack is ready
+                              message:
+                                  type: string
+                                  description: Status message
+                              deployedApps:
+                                  type: object
+                                  properties:
+                                      ingress:
+                                          type: string
