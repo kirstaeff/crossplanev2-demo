@@ -1,0 +1,83 @@
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+    name: bootstrap-stack
+spec:
+    compositeTypeRef:
+        apiVersion: platform.io/v1
+        kind: BootstrapStack
+
+    mode: Pipeline
+    pipeline:
+        - step: patch-and-transform
+          functionRef:
+              name: function-patch-and-transform
+          input:
+              apiVersion: pt.fn.crossplane.io/v1beta1
+              kind: Resources
+              resources:
+                  # Namespace for ingress on workload cluster
+                  - name: ingress-namespace
+                    base:
+                        apiVersion: kubernetes.crossplane.io/v1alpha2
+                        kind: Object
+                        spec:
+                            providerConfigRef:
+                                name: workload-cluster
+                            forProvider:
+                                manifest:
+                                    apiVersion: v1
+                                    kind: Namespace
+                                    metadata:
+                                        name: ingress-nginx
+                    patches:
+                        - type: FromCompositeFieldPath
+                          fromFieldPath: spec.ingress.namespace
+                          toFieldPath: spec.forProvider.manifest.metadata.name
+
+                  # Nginx Ingress Controller Helm Release
+                  - name: nginx-ingress-release
+                    base:
+                        apiVersion: helm.crossplane.io/v1beta1
+                        kind: Release
+                        spec:
+                            providerConfigRef:
+                                name: workload-cluster
+                            forProvider:
+                                chart:
+                                    name: ingress-nginx
+                                    repository: https://kubernetes.github.io/ingress-nginx
+                                    version: "4.11.3"
+                                namespace: ingress-nginx
+                                values:
+                                    controller:
+                                        replicaCount: 1
+                                        service:
+                                            type: NodePort
+                                        nodeSelector:
+                                            ingress-ready: "true"
+                                        tolerations:
+                                            - key: node-role.kubernetes.io/control-plane
+                                              operator: Equal
+                                              effect: NoSchedule
+                                            - key: node-role.kubernetes.io/master
+                                              operator: Equal
+                                              effect: NoSchedule
+                    patches:
+                        - type: FromCompositeFieldPath
+                          fromFieldPath: spec.ingress.chartVersion
+                          toFieldPath: spec.forProvider.chart.version
+                        - type: FromCompositeFieldPath
+                          fromFieldPath: spec.ingress.namespace
+                          toFieldPath: spec.forProvider.namespace
+                        - type: FromCompositeFieldPath
+                          fromFieldPath: spec.ingress.replicaCount
+                          toFieldPath: spec.forProvider.values.controller.replicaCount
+                        - type: FromCompositeFieldPath
+                          fromFieldPath: spec.clusterName
+                          toFieldPath: metadata.name
+                          transforms:
+                              - type: string
+                                string:
+                                    fmt: "%s-nginx-ingress"
+                                    type: Format
