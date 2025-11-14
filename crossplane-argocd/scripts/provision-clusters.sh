@@ -2,29 +2,8 @@
 
 set -e
 
-# Color codes for output
-GREEN='\033[0;32m'
-BLUE='\033[0;34m'
-YELLOW='\033[1;33m'
-RED='\033[0;31m'
-NC='\033[0m' # No Color
-
-# Helper function for output
-print_step() {
-    echo -e "${BLUE}==> $1${NC}"
-}
-
-print_success() {
-    echo -e "${GREEN}✓ $1${NC}"
-}
-
-print_warning() {
-    echo -e "${YELLOW}⚠ $1${NC}"
-}
-
-print_error() {
-    echo -e "${RED}✗ $1${NC}"
-}
+# Source common helper functions
+source "$(dirname "$0")/common.sh"
 
 # Check if we're in the right context
 if ! kubectl config current-context | grep -q "kind-management"; then
@@ -33,17 +12,7 @@ if ! kubectl config current-context | grep -q "kind-management"; then
     exit 1
 fi
 
-# Check if GitLab credentials are configured
-if ! kubectl get secret gitlab-repo-creds -n argocd &> /dev/null; then
-    print_error "GitLab repository credentials not found!"
-    echo "Please run ./setup-gitlab-credentials.sh and ./init-gitops.sh first"
-    exit 1
-fi
-
-# Get the repository URL from the secret
 GITLAB_REPO_URL=$(kubectl get secret gitlab-repo-creds -n argocd -o jsonpath='{.data.url}' | base64 -d)
-
-# Get script directory
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
 # Check if we're in a git repository (check current dir and parent)

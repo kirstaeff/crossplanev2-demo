@@ -2,24 +2,8 @@
 
 set -e
 
-# Color codes for output
-GREEN='\033[0;32m'
-BLUE='\033[0;34m'
-YELLOW='\033[1;33m'
-NC='\033[0m' # No Color
-
-# Helper function for output
-print_step() {
-    echo -e "${BLUE}==> $1${NC}"
-}
-
-print_success() {
-    echo -e "${GREEN}✓ $1${NC}"
-}
-
-print_warning() {
-    echo -e "${YELLOW}⚠ $1${NC}"
-}
+# Source common helper functions
+source "$(dirname "$0")/common.sh"
 
 # Check prerequisites
 print_step "Checking prerequisites..."

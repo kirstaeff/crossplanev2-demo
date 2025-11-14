@@ -1,24 +1,7 @@
 #!/bin/bash
 
 set -e
-
-# Color codes
-GREEN='\033[0;32m'
-BLUE='\033[0;34m'
-RED='\033[0;31m'
-NC='\033[0m'
-
-print_step() {
-    echo -e "${BLUE}==> $1${NC}"
-}
-
-print_success() {
-    echo -e "${GREEN}✓ $1${NC}"
-}
-
-print_error() {
-    echo -e "${RED}✗ $1${NC}"
-}
+source "$(dirname "$0")/common.sh"
 
 # Check if ArgoCD is installed
 if ! kubectl get namespace argocd &> /dev/null; then

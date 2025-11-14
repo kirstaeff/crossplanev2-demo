@@ -1,30 +1,7 @@
 #!/bin/bash
 
 set -e
-
-# Color codes for output
-GREEN='\033[0;32m'
-BLUE='\033[0;34m'
-YELLOW='\033[1;33m'
-RED='\033[0;31m'
-NC='\033[0m' # No Color
-
-# Helper function for output
-print_step() {
-    echo -e "${BLUE}==> $1${NC}"
-}
-
-print_success() {
-    echo -e "${GREEN}✓ $1${NC}"
-}
-
-print_warning() {
-    echo -e "${YELLOW}⚠ $1${NC}"
-}
-
-print_error() {
-    echo -e "${RED}✗ $1${NC}"
-}
+source "$(dirname "$0")/common.sh"
 
 # Check if we're in the right context
 if ! kubectl config current-context | grep -q "kind-management"; then
@@ -70,9 +47,7 @@ if [ ! -d "$SCRIPT_DIR/gitops-demo/manifests" ]; then
 fi
 
 echo ""
-echo "=============================================="
 print_step "Creating ArgoCD Applications..."
-echo "=============================================="
 echo ""
 
 # Create ArgoCD application for Crossplane config (XRDs and Compositions)
@@ -127,15 +102,16 @@ spec:
       jsonPointers:
         - /status
 EOF
+
 print_success "crossplane-config Application created"
 
-# Create ArgoCD application for cluster provisioning
-print_step "Creating cluster-provisioning Application..."
+print_step "Creating cluster-bootstrapping Application..."
+
 cat <<EOF | kubectl apply -f -
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: cluster-provisioning
+  name: cluster-bootstrapping
   namespace: argocd
   annotations:
     argocd.argoproj.io/sync-wave: "2"
@@ -179,35 +155,31 @@ spec:
         - /metadata/generation
         - /metadata/resourceVersion
 EOF
-print_success "cluster-provisioning Application created"
 
-# Wait for ArgoCD to sync (automated sync policy will trigger)
+print_success "cluster-bootstrapping Application created"
+
 echo ""
 print_step "Waiting for ArgoCD to sync XRDs and Compositions from GitLab..."
 sleep 10
 
-# Wait for XRDs to be established
 print_step "Waiting for XRDs to be established..."
 kubectl wait --for=condition=Established xrd/bootstrapstacks.platform.io --timeout=120s 2>/dev/null || \
   print_warning "XRD taking longer than expected (ArgoCD may still be syncing)"
 print_success "XRDs are established"
 
-# Check application status
 echo ""
 print_step "Checking ArgoCD Application status..."
 kubectl get applications -n argocd
 
 echo ""
-echo "=============================================="
-echo -e "${GREEN}✓ GitOps Setup Complete!${NC}"
-echo "=============================================="
+echo -e "${GREEN} GitOps Setup Complete!${NC}"
 echo ""
 echo "GitLab Repository: $GITLAB_REPO_URL"
 echo "Branch: $TARGET_REVISION"
 echo ""
 echo "ArgoCD Applications:"
 echo "  - crossplane-config (XRDs and Compositions)"
-echo "  - cluster-provisioning (Cluster XRs)"
+echo "  - cluster-bootstrapping (Cluster XRs)"
 echo ""
 echo "Verify setup:"
 echo "  kubectl get applications -n argocd"
