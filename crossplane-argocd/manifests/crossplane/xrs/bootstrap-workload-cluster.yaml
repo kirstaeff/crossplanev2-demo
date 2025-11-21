@@ -3,11 +3,10 @@ kind: BootstrapStack
 metadata:
     name: dev-cluster
     namespace: crossplane-system
-    annotations:
-        argocd.argoproj.io/sync-wave: "10"
 spec:
     clusterName: kind-workload
     ingress:
-        chartVersion: "4.4.0" # Using older version for dev
+        enabled: false
+        chartVersion: "4.4.0"
         namespace: nginx-ingress-dynamic
-        replicaCount: 1
+        replicaCount: 2

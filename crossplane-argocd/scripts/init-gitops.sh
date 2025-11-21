@@ -35,16 +35,7 @@ print_success "Using GitLab repository: $GITLAB_REPO_URL"
 
 # Get target revision/branch from environment or use default
 TARGET_REVISION="${GIT_BRANCH:-main}"
-
 print_step "Target branch: $TARGET_REVISION"
-
-# Get script directory
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-if [ ! -d "$SCRIPT_DIR/gitops-demo/manifests" ]; then
-    print_error "gitops-demo/manifests directory not found at $SCRIPT_DIR/gitops-demo/manifests"
-    echo "Please ensure gitops-demo/manifests directory exists with your Crossplane configurations"
-    exit 1
-fi
 
 echo ""
 print_step "Creating ArgoCD Applications..."
@@ -68,7 +59,7 @@ spec:
   source:
     repoURL: $GITLAB_REPO_URL
     targetRevision: $TARGET_REVISION
-    path: crossplane-argocd/gitops-demo/manifests/crossplane
+    path: crossplane-argocd/gitops-demo/
     directory:
       recurse: true
       include: '{xrds/*.yaml,compositions/*.yaml}'
@@ -123,7 +114,7 @@ spec:
   source:
     repoURL: $GITLAB_REPO_URL
     targetRevision: $TARGET_REVISION
-    path: crossplane-argocd/gitops-demo/manifests/crossplane/clusters
+    path: crossplane-argocd/gitops-demo/xrs
     directory:
       recurse: true
       include: '*.yaml'
@@ -188,7 +179,7 @@ echo "  kubectl get compositions"
 echo ""
 echo "Next steps:"
 echo "  1. Push your gitops-demo directory to $GITLAB_REPO_URL"
-echo "     cd $SCRIPT_DIR/.."
+echo "     cd $PROJECT_DIR/../"
 echo "     git init (if not already initialized)"
 echo "     git remote add origin $GITLAB_REPO_URL"
 echo "     git add crossplane-argocd/gitops-demo/"

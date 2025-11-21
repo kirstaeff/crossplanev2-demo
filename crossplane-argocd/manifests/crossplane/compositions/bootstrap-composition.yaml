@@ -17,7 +17,7 @@ spec:
               kind: Resources
               resources:
                   # Namespace for ingress on workload cluster
-                  - name: ingress-namespace
+                  - name: nginx-ingress-namespace
                     base:
                         apiVersion: kubernetes.crossplane.io/v1alpha2
                         kind: Object
@@ -54,15 +54,13 @@ spec:
                                         replicaCount: 1
                                         service:
                                             type: NodePort
-                                        nodeSelector:
-                                            ingress-ready: "true"
-                                        tolerations:
-                                            - key: node-role.kubernetes.io/control-plane
-                                              operator: Equal
-                                              effect: NoSchedule
-                                            - key: node-role.kubernetes.io/master
-                                              operator: Equal
-                                              effect: NoSchedule
+                                        # tolerations:
+                                        #     - key: node-role.kubernetes.io/control-plane
+                                        #       operator: Equal
+                                        #       effect: NoSchedule
+                                        #     - key: node-role.kubernetes.io/master
+                                        #       operator: Equal
+                                        #       effect: NoSchedule
                     patches:
                         - type: FromCompositeFieldPath
                           fromFieldPath: spec.ingress.chartVersion
@@ -81,3 +79,16 @@ spec:
                                 string:
                                     fmt: "%s-nginx-ingress"
                                     type: Format
+
+        # Filter
+        - step: filter-composed-resources
+          functionRef:
+              name: crossplane-contrib-function-cel-filter
+          input:
+              apiVersion: cel.fn.crossplane.io/v1beta1
+              kind: Filters
+              filters:
+                  - name: nginx-ingress-namespace
+                    expression: observed.composite.resource.spec.ingress.enabled == true
+                  - name: nginx-ingress-release
+                    expression: observed.composite.resource.spec.ingress.enabled == true

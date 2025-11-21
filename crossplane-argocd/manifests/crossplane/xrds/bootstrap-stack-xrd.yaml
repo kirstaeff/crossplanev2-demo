@@ -7,9 +7,6 @@ spec:
     names:
         kind: BootstrapStack
         plural: bootstrapstacks
-    claimNames:
-        kind: BootstrapStackClaim
-        plural: bootstrapstackclaims
     versions:
         - name: v1
           served: true
@@ -26,6 +23,10 @@ spec:
                               ingress:
                                   type: object
                                   properties:
+                                      enabled:
+                                          type: boolean
+                                          default: true
+                                          description: Enable or disable nginx ingress controller
                                       chartVersion:
                                           type: string
                                           default: "4.11.3"
